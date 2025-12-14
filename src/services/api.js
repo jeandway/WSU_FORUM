@@ -41,21 +41,32 @@ class ApiClient {
     }
 
     try {
-      const response = await fetch(url, config);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), CONFIG.TIMEOUT);
+      
+      const response = await fetch(url, { ...config, signal: controller.signal });
+      clearTimeout(timeoutId);
       
       // Handle empty responses
       const text = await response.text();
       const data = text ? JSON.parse(text) : {};
       
       if (!response.ok) {
-        throw new ApiError(response.status, data.message || 'Request failed');
+        // Extract user-friendly error message
+        const errorMessage = data.message || data.Message || 'Request failed';
+        throw new ApiError(response.status, errorMessage);
       }
 
       return data;
     } catch (error) {
       if (error instanceof ApiError) throw error;
+      
+      if (error.name === 'AbortError') {
+        throw new ApiError(0, 'Request timed out. Please try again.');
+      }
+      
       console.error('API Error:', error);
-      throw new ApiError(0, error.message || 'Network error');
+      throw new ApiError(0, error.message || 'Network error. Please check your connection.');
     }
   }
 
@@ -114,178 +125,11 @@ const MOCK_DATA = {
     avatar: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Jean',
     bio: 'CS student passionate about AI and web development.',
     joinedAt: '2024-09-01',
+    emailVerified: true,
     stats: { posts: 12, followers: 45, following: 32 },
   },
 
-  posts: [
-    {
-      id: 'p1',
-      author: { 
-        id: 'u_ali', 
-        name: 'Ali Z.', 
-        avatar: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Ali',
-        role: 'Student'
-      },
-      subforumId: 'cs',
-      topicId: 't2',
-      topicName: 'CS & AI',
-      title: 'Best starter project for CNNs?',
-      body: 'Trying to build something simple that still teaches the core ideas. Any suggestions for a beginner-friendly project?',
-      liked: false,
-      saved: true,
-      likes: 9,
-      comments: [
-        { 
-          id: 'c1', 
-          author: { id: 'u_jay', name: 'Jay M.', avatar: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Jay', role: 'Student' },
-          text: 'MNIST or CIFAR-10 is perfect. Keep it small, track overfitting.',
-          createdAt: '1h ago'
-        },
-      ],
-      createdAt: '2h ago',
-      contentType: 'discussion',
-    },
-    {
-      id: 'p2',
-      author: { 
-        id: 'u_robotics', 
-        name: 'WSU Robotics', 
-        avatar: 'https://api.dicebear.com/8.x/shapes/svg?seed=WSU',
-        role: 'Staff'
-      },
-      subforumId: 'clubs',
-      topicId: 't3',
-      topicName: 'Events',
-      title: 'Tonight: drivetrain tear-down stream',
-      body: "We'll live stream at 7pm. Bring questions about brushless motors & PID tuning. Everyone welcome!",
-      liked: true,
-      saved: false,
-      likes: 31,
-      comments: [],
-      createdAt: '6h ago',
-      contentType: 'event',
-      eventDate: '2025-12-15',
-      eventTime: '19:00',
-      eventPlace: 'Engineering 1500',
-    },
-    {
-      id: 'p3',
-      author: { 
-        id: 'u_sarah', 
-        name: 'Sarah K.', 
-        avatar: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Sarah',
-        role: 'Student'
-      },
-      subforumId: 'roommates',
-      topicId: 't4',
-      topicName: 'Housing',
-      title: 'Roommate needed for Winter semester',
-      body: 'Looking for a roommate to share a 2BR apartment near campus. $650/month including utilities. DM if interested!',
-      liked: false,
-      saved: false,
-      likes: 5,
-      comments: [],
-      createdAt: '1d ago',
-      contentType: 'discussion',
-    },
-    {
-      id: 'p4',
-      author: { 
-        id: 'u_drsmith', 
-        name: 'Dr. Smith', 
-        avatar: 'https://api.dicebear.com/8.x/avataaars/svg?seed=DrSmith',
-        role: 'Faculty'
-      },
-      subforumId: 'announcements',
-      topicId: 't1',
-      topicName: 'Announcements',
-      title: 'Final Exam Schedule Released',
-      body: 'The final exam schedule for Fall 2025 has been posted. Please check the registrar website for your specific times. Office hours will be extended during finals week.',
-      liked: true,
-      saved: true,
-      likes: 45,
-      comments: [
-        { 
-          id: 'c2', 
-          author: { id: 'u_mike', name: 'Mike L.', avatar: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Mike', role: 'Student' },
-          text: 'Thanks for the heads up!',
-          createdAt: '30m ago'
-        },
-      ],
-      createdAt: '4h ago',
-      contentType: 'announcement',
-    },
-    {
-      id: 'p5',
-      author: { 
-        id: 'u_emma', 
-        name: 'Emma T.', 
-        avatar: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Emma',
-        role: 'Student'
-      },
-      subforumId: 'study-groups',
-      topicId: 't6',
-      topicName: 'Study Groups',
-      title: 'Study group for CSC 4500 Algorithms?',
-      body: 'Anyone want to form a study group for the Algorithms final? Planning to meet at the library this weekend.',
-      liked: false,
-      saved: false,
-      likes: 12,
-      comments: [
-        { 
-          id: 'c3', 
-          author: { id: 'u_alex', name: 'Alex P.', avatar: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Alex', role: 'Student' },
-          text: "I'm in! DM me the details.",
-          createdAt: '2h ago'
-        },
-      ],
-      createdAt: '5h ago',
-      contentType: 'question',
-    },
-    {
-      id: 'p6',
-      author: { 
-        id: 'u_career', 
-        name: 'Career Services', 
-        avatar: 'https://api.dicebear.com/8.x/shapes/svg?seed=Career',
-        role: 'Staff'
-      },
-      subforumId: 'internships',
-      topicId: 't7',
-      topicName: 'Career',
-      title: 'Summer 2026 Internship Fair - Register Now!',
-      body: 'Over 50 companies will be attending our annual internship fair on January 15th. Registration is required. Free professional headshots available!',
-      liked: true,
-      saved: true,
-      likes: 89,
-      comments: [],
-      createdAt: '1d ago',
-      contentType: 'event',
-      eventDate: '2026-01-15',
-      eventTime: '10:00',
-      eventPlace: 'Student Center Ballroom',
-    },
-    {
-      id: 'p7',
-      author: { 
-        id: 'u_jason', 
-        name: 'Jason R.', 
-        avatar: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Jason',
-        role: 'Student'
-      },
-      subforumId: 'marketplace',
-      topicId: 't5',
-      topicName: 'Marketplace',
-      title: 'Selling: Calculus textbook (Stewart 9th Ed)',
-      body: 'Barely used, no highlighting. $50 OBO. Can meet on campus.',
-      liked: false,
-      saved: false,
-      likes: 3,
-      comments: [],
-      createdAt: '2d ago',
-      contentType: 'discussion',
-    },
-  ],
+  posts: [],  // Posts are now in PostContext with more realistic mock data
 
   topics: [
     { id: 't1', name: 'Announcements', description: 'Official WSU announcements', followers: 1234, color: '#0c5449' },
@@ -303,49 +147,45 @@ const MOCK_DATA = {
       id: 'e1', 
       title: 'AI/ML Club Meetup', 
       description: 'Monthly meetup to discuss latest AI trends and projects.',
-      date: '2025-12-20', 
+      date: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       time: '18:00',
       place: 'Prentis 2F', 
       going: 42,
       interested: 78,
       organizer: 'AI/ML Club',
-      image: null,
     },
     { 
       id: 'e2', 
       title: 'Robotics Demo Night', 
       description: 'See student robotics projects in action!',
-      date: '2025-12-22', 
+      date: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       time: '19:00',
       place: 'Engineering 1500', 
       going: 87,
       interested: 156,
       organizer: 'WSU Robotics',
-      image: null,
     },
     { 
       id: 'e3', 
       title: 'Winter Career Fair', 
       description: 'Connect with top employers recruiting WSU students.',
-      date: '2025-12-28', 
+      date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       time: '10:00',
       place: 'Student Center Ballroom', 
       going: 256,
       interested: 890,
       organizer: 'Career Services',
-      image: null,
     },
     { 
       id: 'e4', 
       title: 'Study Jam: Finals Week', 
       description: 'Group study session with free coffee and snacks.',
-      date: '2025-12-18', 
+      date: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       time: '14:00',
       place: 'Library 3rd Floor', 
       going: 34,
       interested: 89,
       organizer: 'Student Government',
-      image: null,
     },
   ],
 };
@@ -383,9 +223,9 @@ export const api = {
       if (CONFIG.USE_MOCKS) {
         await delay(500);
         if (email && password) {
-          return { user: MOCK_DATA.user, token: 'mock_token_123' };
+          return { success: true, user: MOCK_DATA.user, accessToken: 'mock_token_123' };
         }
-        throw new ApiError(401, 'Invalid credentials');
+        throw new ApiError(401, 'Invalid email or password');
       }
       
       // Real API call
@@ -406,7 +246,12 @@ export const api = {
 
     async signUp(data) {
       if (CONFIG.USE_MOCKS) {
-        return mockResponse({ user: { ...MOCK_DATA.user, ...data }, token: 'mock_token_123' }, 600);
+        return mockResponse({ 
+          success: true,
+          user: { ...MOCK_DATA.user, ...data }, 
+          accessToken: 'mock_token_123',
+          message: 'Account created! Please check your email to verify.'
+        }, 600);
       }
       
       // Real API call
@@ -452,7 +297,7 @@ export const api = {
       if (CONFIG.USE_MOCKS) {
         await delay(400);
         if (code === '123456') {
-          return { verified: true };
+          return { success: true, message: 'Email verified!' };
         }
         throw new ApiError(400, 'Invalid verification code');
       }
@@ -461,7 +306,7 @@ export const api = {
 
     async forgotPassword(email) {
       if (CONFIG.USE_MOCKS) {
-        return mockResponse({ sent: true }, 400);
+        return mockResponse({ success: true, message: 'Reset email sent' }, 400);
       }
       return client.post('/auth/forgot-password', { email });
     },
@@ -495,7 +340,11 @@ export const api = {
         }
         return mockResponse({ posts });
       }
-      return client.get('/posts', params);
+      try {
+        return await client.get('/posts', params);
+      } catch (e) {
+        return { posts: [] };
+      }
     },
 
     async getById(id) {
@@ -590,7 +439,11 @@ export const api = {
       if (CONFIG.USE_MOCKS) {
         return mockResponse({ topics: MOCK_DATA.topics }, 200);
       }
-      return client.get('/topics');
+      try {
+        return await client.get('/topics');
+      } catch (e) {
+        return { topics: MOCK_DATA.topics };
+      }
     },
 
     async getById(id) {
@@ -629,7 +482,11 @@ export const api = {
       if (CONFIG.USE_MOCKS) {
         return mockResponse({ events: MOCK_DATA.events }, 200);
       }
-      return client.get('/events', params);
+      try {
+        return await client.get('/events', params);
+      } catch (e) {
+        return { events: MOCK_DATA.events };
+      }
     },
 
     async getById(id) {
@@ -689,6 +546,37 @@ export const api = {
         return mockResponse({ success: true, reportId: `r_${Date.now()}` }, 350);
       }
       return client.post('/reports', { type, targetId, reason });
+    },
+  },
+  
+  // --------------------------------------------------------------------------
+  // SETTINGS
+  // --------------------------------------------------------------------------
+  settings: {
+    async get() {
+      if (CONFIG.USE_MOCKS) {
+        const saved = localStorage.getItem('wsu_forum_settings');
+        return mockResponse({ settings: saved ? JSON.parse(saved) : {} });
+      }
+      try {
+        return await client.get('/users/me/settings');
+      } catch (e) {
+        const saved = localStorage.getItem('wsu_forum_settings');
+        return { settings: saved ? JSON.parse(saved) : {} };
+      }
+    },
+
+    async update(settings) {
+      if (CONFIG.USE_MOCKS) {
+        localStorage.setItem('wsu_forum_settings', JSON.stringify(settings));
+        return mockResponse({ success: true, settings });
+      }
+      try {
+        return await client.patch('/users/me/settings', settings);
+      } catch (e) {
+        localStorage.setItem('wsu_forum_settings', JSON.stringify(settings));
+        return { success: true, settings };
+      }
     },
   },
 };

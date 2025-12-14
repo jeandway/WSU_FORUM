@@ -11,3 +11,7 @@ build
 .vite
 .env
 .env.*
+appsettings.json
+wsuforum.db
+bin/
+obj/

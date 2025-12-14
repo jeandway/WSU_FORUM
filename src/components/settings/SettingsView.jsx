@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import { ROUTES } from '@/constants';
 import { 
   User, 
@@ -13,28 +14,97 @@ import {
   Palette, 
   LogOut,
   Save,
-  Loader2
+  Loader2,
+  Moon,
+  Sun,
+  CheckCircle2
 } from 'lucide-react';
 
 export function SettingsView({ setRoute }) {
   const { user, signOut, updateUser } = useAuth();
+  const { settings, updateSettings, loading: settingsLoading } = useSettings();
   const [loading, setLoading] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   
   // Form state
   const [name, setName] = useState(user?.name || '');
   const [bio, setBio] = useState(user?.bio || '');
   
-  // Notification settings
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [pushNotifications, setPushNotifications] = useState(true);
-  const [mentionNotifications, setMentionNotifications] = useState(true);
+  // Notification settings from context
+  const [emailNotifications, setEmailNotifications] = useState(settings?.emailNotifications ?? true);
+  const [pushNotifications, setPushNotifications] = useState(settings?.pushNotifications ?? true);
+  const [mentionNotifications, setMentionNotifications] = useState(settings?.mentionNotifications ?? true);
+  
+  // Privacy settings
+  const [publicProfile, setPublicProfile] = useState(settings?.publicProfile ?? true);
+  const [showOnlineStatus, setShowOnlineStatus] = useState(settings?.showOnlineStatus ?? true);
+  
+  // Appearance
+  const [darkMode, setDarkMode] = useState(settings?.darkMode ?? false);
+
+  // Sync with settings context
+  useEffect(() => {
+    if (settings) {
+      setEmailNotifications(settings.emailNotifications ?? true);
+      setPushNotifications(settings.pushNotifications ?? true);
+      setMentionNotifications(settings.mentionNotifications ?? true);
+      setPublicProfile(settings.publicProfile ?? true);
+      setShowOnlineStatus(settings.showOnlineStatus ?? true);
+      setDarkMode(settings.darkMode ?? false);
+    }
+  }, [settings]);
+
+  // Apply dark mode to document
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
 
   const handleSaveProfile = async () => {
     setLoading(true);
-    // Simulate API call
-    await new Promise((r) => setTimeout(r, 500));
-    updateUser({ name, bio });
+    setSaveSuccess(false);
+    
+    // Update user profile
+    await updateUser({ name, bio });
+    
     setLoading(false);
+    setSaveSuccess(true);
+    
+    // Hide success message after 3 seconds
+    setTimeout(() => setSaveSuccess(false), 3000);
+  };
+
+  const handleNotificationChange = async (key, value) => {
+    const newSettings = { ...settings, [key]: value };
+    
+    // Update local state immediately
+    switch(key) {
+      case 'emailNotifications': setEmailNotifications(value); break;
+      case 'pushNotifications': setPushNotifications(value); break;
+      case 'mentionNotifications': setMentionNotifications(value); break;
+    }
+    
+    // Persist to context/storage
+    await updateSettings(newSettings);
+  };
+
+  const handlePrivacyChange = async (key, value) => {
+    const newSettings = { ...settings, [key]: value };
+    
+    switch(key) {
+      case 'publicProfile': setPublicProfile(value); break;
+      case 'showOnlineStatus': setShowOnlineStatus(value); break;
+    }
+    
+    await updateSettings(newSettings);
+  };
+
+  const handleDarkModeChange = async (value) => {
+    setDarkMode(value);
+    await updateSettings({ ...settings, darkMode: value });
   };
 
   const handleSignOut = async () => {
@@ -89,18 +159,26 @@ export function SettingsView({ setRoute }) {
               Email cannot be changed
             </p>
           </div>
-          <Button 
-            onClick={handleSaveProfile}
-            disabled={loading}
-            className="bg-[var(--wsu-green)] hover:bg-[var(--wsu-green)]/90"
-          >
-            {loading ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
+          <div className="flex items-center gap-3">
+            <Button 
+              onClick={handleSaveProfile}
+              disabled={loading}
+              className="bg-[var(--wsu-green)] hover:bg-[var(--wsu-green)]/90"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Save Changes
+            </Button>
+            {saveSuccess && (
+              <span className="text-sm text-green-600 flex items-center gap-1">
+                <CheckCircle2 className="h-4 w-4" />
+                Saved!
+              </span>
             )}
-            Save Changes
-          </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -121,7 +199,7 @@ export function SettingsView({ setRoute }) {
             </div>
             <Switch 
               checked={emailNotifications}
-              onCheckedChange={setEmailNotifications}
+              onCheckedChange={(checked) => handleNotificationChange('emailNotifications', checked)}
             />
           </div>
           <Separator />
@@ -132,7 +210,7 @@ export function SettingsView({ setRoute }) {
             </div>
             <Switch 
               checked={pushNotifications}
-              onCheckedChange={setPushNotifications}
+              onCheckedChange={(checked) => handleNotificationChange('pushNotifications', checked)}
             />
           </div>
           <Separator />
@@ -143,7 +221,7 @@ export function SettingsView({ setRoute }) {
             </div>
             <Switch 
               checked={mentionNotifications}
-              onCheckedChange={setMentionNotifications}
+              onCheckedChange={(checked) => handleNotificationChange('mentionNotifications', checked)}
             />
           </div>
         </CardContent>
@@ -164,7 +242,10 @@ export function SettingsView({ setRoute }) {
               <p className="font-medium">Public Profile</p>
               <p className="text-sm text-zinc-500">Allow others to see your profile</p>
             </div>
-            <Switch defaultChecked />
+            <Switch 
+              checked={publicProfile}
+              onCheckedChange={(checked) => handlePrivacyChange('publicProfile', checked)}
+            />
           </div>
           <Separator />
           <div className="flex items-center justify-between">
@@ -172,7 +253,10 @@ export function SettingsView({ setRoute }) {
               <p className="font-medium">Show Online Status</p>
               <p className="text-sm text-zinc-500">Let others see when you're active</p>
             </div>
-            <Switch defaultChecked />
+            <Switch 
+              checked={showOnlineStatus}
+              onCheckedChange={(checked) => handlePrivacyChange('showOnlineStatus', checked)}
+            />
           </div>
         </CardContent>
       </Card>
@@ -188,11 +272,21 @@ export function SettingsView({ setRoute }) {
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Dark Mode</p>
-              <p className="text-sm text-zinc-500">Use dark theme</p>
+            <div className="flex items-center gap-3">
+              {darkMode ? (
+                <Moon className="h-5 w-5 text-indigo-500" />
+              ) : (
+                <Sun className="h-5 w-5 text-amber-500" />
+              )}
+              <div>
+                <p className="font-medium">Dark Mode</p>
+                <p className="text-sm text-zinc-500">Use dark theme</p>
+              </div>
             </div>
-            <Switch />
+            <Switch 
+              checked={darkMode}
+              onCheckedChange={handleDarkModeChange}
+            />
           </div>
         </CardContent>
       </Card>

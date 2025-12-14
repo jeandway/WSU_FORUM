@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { PostProvider } from '@/contexts/PostContext';
+import { SettingsProvider } from '@/contexts/SettingsContext';
 import { Header } from '@/components/layout/Header';
 import { Sidebar, MobileSidebar } from '@/components/layout/Sidebar';
 import { AuthView } from '@/components/auth/AuthView';
@@ -25,11 +26,13 @@ import { ROUTES } from '@/constants';
 export default function App() {
   return (
     <TooltipProvider>
-      <AuthProvider>
-        <PostProvider>
-          <AppContent />
-        </PostProvider>
-      </AuthProvider>
+      <SettingsProvider>
+        <AuthProvider>
+          <PostProvider>
+            <AppContent />
+          </PostProvider>
+        </AuthProvider>
+      </SettingsProvider>
     </TooltipProvider>
   );
 }
@@ -69,10 +72,10 @@ function AppContent() {
   // Show loading state
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--wsu-gray)]">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--wsu-gray)] dark:bg-zinc-900">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-[var(--wsu-green)] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-zinc-500">Loading...</p>
+          <p className="text-zinc-500 dark:text-zinc-400">Loading...</p>
         </div>
       </div>
     );
@@ -82,7 +85,7 @@ function AppContent() {
   const eventBadge = 4; // Would come from events API
 
   return (
-    <div className="min-h-screen w-full bg-[var(--wsu-gray)]">
+    <div className="min-h-screen w-full bg-[var(--wsu-gray)] dark:bg-zinc-900 transition-colors">
       {/* Header */}
       <Header 
         onMenuClick={() => setMobileSidebarOpen(true)} 

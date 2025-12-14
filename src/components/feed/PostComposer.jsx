@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -38,8 +38,13 @@ import {
   Hash,
   X,
   ChevronDown,
-  Lock
+  Lock,
+  Upload,
+  Trash2
 } from 'lucide-react';
+
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
 export function PostComposer({ open, onOpenChange, defaultSubforum = null }) {
   const { user } = useAuth();
@@ -54,6 +59,12 @@ export function PostComposer({ open, onOpenChange, defaultSubforum = null }) {
   const [eventPlace, setEventPlace] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // Image handling
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [imageError, setImageError] = useState('');
+  const fileInputRef = useRef(null);
 
   const userRole = user?.role || 'Student';
   const isEvent = contentType === CONTENT_TYPES.EVENT;
@@ -90,11 +101,51 @@ export function PostComposer({ open, onOpenChange, defaultSubforum = null }) {
     setEventTime('');
     setEventPlace('');
     setError('');
+    setSelectedImage(null);
+    setImagePreview(null);
+    setImageError('');
   };
 
   const handleClose = () => {
     resetForm();
     onOpenChange(false);
+  };
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImageError('');
+
+    // Validate file type
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setImageError('Please select a valid image (JPEG, PNG, GIF, or WebP)');
+      return;
+    }
+
+    // Validate file size
+    if (file.size > MAX_IMAGE_SIZE) {
+      setImageError(`Image must be smaller than ${MAX_IMAGE_SIZE / (1024 * 1024)}MB`);
+      return;
+    }
+
+    setSelectedImage(file);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    setImageError('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -143,6 +194,11 @@ export function PostComposer({ open, onOpenChange, defaultSubforum = null }) {
       postData.eventPlace = eventPlace;
     }
 
+    // Handle image upload (base64 for now, would be URL from server in production)
+    if (imagePreview) {
+      postData.image = imagePreview;
+    }
+
     const result = await createPost(postData);
     
     setLoading(false);
@@ -152,6 +208,16 @@ export function PostComposer({ open, onOpenChange, defaultSubforum = null }) {
     } else {
       setError(result.error || 'Failed to create post');
     }
+  };
+
+  // Check if form is valid for submission
+  const isFormValid = () => {
+    return (
+      title.trim().length > 0 &&
+      body.trim().length > 0 &&
+      selectedSubforum &&
+      (!isEvent || eventDate)
+    );
   };
 
   const contentTypes = [
@@ -196,7 +262,7 @@ export function PostComposer({ open, onOpenChange, defaultSubforum = null }) {
             <DropdownMenuTrigger asChild>
               <Button 
                 variant="outline" 
-                className="w-full justify-between"
+                className={`w-full justify-between ${!selectedSubforum ? 'border-red-300' : ''}`}
                 type="button"
               >
                 {selectedSubforum ? (
@@ -205,7 +271,7 @@ export function PostComposer({ open, onOpenChange, defaultSubforum = null }) {
                     {selectedSubforum.name}
                   </span>
                 ) : (
-                  <span className="text-zinc-500">Select sub-forum...</span>
+                  <span className="text-zinc-500">Select sub-forum... *</span>
                 )}
                 <ChevronDown className="h-4 w-4 ml-2" />
               </Button>
@@ -256,22 +322,73 @@ export function PostComposer({ open, onOpenChange, defaultSubforum = null }) {
           </div>
 
           {/* Title */}
-          <Input
-            placeholder="Post title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="font-medium"
-            maxLength={100}
-          />
+          <div className="space-y-1">
+            <Input
+              placeholder="Post title *"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className={`font-medium ${!title.trim() && error ? 'border-red-300' : ''}`}
+              maxLength={100}
+            />
+            <p className="text-xs text-zinc-400 text-right">{title.length}/100</p>
+          </div>
 
           {/* Body */}
-          <Textarea
-            placeholder="What's on your mind?"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            className="min-h-[120px] resize-none"
-            maxLength={5000}
-          />
+          <div className="space-y-1">
+            <Textarea
+              placeholder="What's on your mind? *"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              className={`min-h-[120px] resize-none ${!body.trim() && error ? 'border-red-300' : ''}`}
+              maxLength={5000}
+            />
+            <p className="text-xs text-zinc-400 text-right">{body.length}/5000</p>
+          </div>
+
+          {/* Image Upload */}
+          <div className="space-y-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              onChange={handleImageSelect}
+              className="hidden"
+            />
+            
+            {imagePreview ? (
+              <div className="relative rounded-lg overflow-hidden border">
+                <img 
+                  src={imagePreview} 
+                  alt="Preview" 
+                  className="w-full max-h-48 object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full p-4 border-2 border-dashed border-zinc-200 rounded-lg hover:border-zinc-300 hover:bg-zinc-50 transition flex flex-col items-center gap-2"
+              >
+                <Upload className="h-6 w-6 text-zinc-400" />
+                <span className="text-sm text-zinc-500">Click to upload an image</span>
+                <span className="text-xs text-zinc-400">JPEG, PNG, GIF or WebP (max 5MB)</span>
+              </button>
+            )}
+            
+            {imageError && (
+              <p className="text-sm text-red-600 flex items-center gap-2">
+                <X className="h-4 w-4" />
+                {imageError}
+              </p>
+            )}
+          </div>
 
           {/* Event Fields */}
           {isEvent && (
@@ -288,6 +405,7 @@ export function PostComposer({ open, onOpenChange, defaultSubforum = null }) {
                     value={eventDate}
                     onChange={(e) => setEventDate(e.target.value)}
                     min={new Date().toISOString().split('T')[0]}
+                    className={!eventDate && error ? 'border-red-300' : ''}
                   />
                 </div>
                 <div>
@@ -325,7 +443,13 @@ export function PostComposer({ open, onOpenChange, defaultSubforum = null }) {
           {/* Footer */}
           <DialogFooter className="flex-row justify-between sm:justify-between">
             <div className="flex gap-2">
-              <Button type="button" variant="ghost" size="icon" disabled>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="icon"
+                onClick={() => fileInputRef.current?.click()}
+                title="Add image"
+              >
                 <ImageIcon className="h-5 w-5" />
               </Button>
             </div>
@@ -335,7 +459,7 @@ export function PostComposer({ open, onOpenChange, defaultSubforum = null }) {
               </Button>
               <Button 
                 type="submit" 
-                disabled={loading || !title.trim() || !body.trim() || !selectedSubforum}
+                disabled={loading || !isFormValid()}
                 className="bg-[var(--wsu-green)] hover:bg-[var(--wsu-green)]/90"
               >
                 {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
