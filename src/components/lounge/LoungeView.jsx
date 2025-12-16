@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import { getInitials } from '@/lib/utils';
 import { 
   MessageCircle, 
@@ -14,7 +16,7 @@ import {
   Smile
 } from 'lucide-react';
 
-// Demo chat rooms
+// Chat rooms configuration
 const CHAT_ROOMS = [
   { id: 'general', name: 'General', icon: Hash, members: 234, unread: 5 },
   { id: 'study', name: 'Study Buddies', icon: Hash, members: 89, unread: 0 },
@@ -22,7 +24,7 @@ const CHAT_ROOMS = [
   { id: 'events', name: 'Events Chat', icon: Hash, members: 67, unread: 0 },
 ];
 
-// Demo messages
+// Mock demo messages
 const DEMO_MESSAGES = [
   { id: 1, user: { name: 'Alex K.', avatar: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Alex' }, text: 'Hey everyone! Anyone up for a study session tonight?', time: '2:30 PM' },
   { id: 2, user: { name: 'Sarah M.', avatar: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Sarah' }, text: 'I\'m in! Library 3rd floor?', time: '2:32 PM' },
@@ -33,9 +35,67 @@ const DEMO_MESSAGES = [
 
 export function LoungeView() {
   const { user } = useAuth();
+  const { settings } = useSettings();
   const [activeRoom, setActiveRoom] = useState('general');
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState(DEMO_MESSAGES);
+  const [onlineUsers, setOnlineUsers] = useState([]);
+
+  // Load online users - those with showOnlineStatus enabled
+  useEffect(() => {
+    // In a real app, this would be from an API
+    // For now, we'll show the current user if they have online status enabled
+    const loadOnlineUsers = () => {
+      const mockOnlineUsers = [
+        { 
+          id: 'u1', 
+          name: 'Alex K.', 
+          avatar: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Alex',
+          showOnlineStatus: true 
+        },
+        { 
+          id: 'u2', 
+          name: 'Sarah M.', 
+          avatar: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Sarah',
+          showOnlineStatus: true 
+        },
+        { 
+          id: 'u3', 
+          name: 'Jordan T.', 
+          avatar: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Jordan',
+          showOnlineStatus: true 
+        },
+      ];
+
+      // Add current user if they have online status enabled
+      if (user && settings?.showOnlineStatus) {
+        const currentUserOnline = {
+          id: user.id,
+          name: user.name,
+          avatar: user.avatar,
+          showOnlineStatus: true,
+          isCurrentUser: true,
+        };
+        
+        // Check if user is already in the list
+        const userExists = mockOnlineUsers.some(u => u.id === user.id);
+        if (!userExists) {
+          setOnlineUsers([currentUserOnline, ...mockOnlineUsers]);
+        } else {
+          setOnlineUsers(mockOnlineUsers.map(u => 
+            u.id === user.id ? { ...u, isCurrentUser: true } : u
+          ));
+        }
+      } else if (user && !settings?.showOnlineStatus) {
+        // If current user has online status disabled, don't show them
+        setOnlineUsers(mockOnlineUsers.filter(u => u.id !== user.id));
+      } else {
+        setOnlineUsers(mockOnlineUsers);
+      }
+    };
+
+    loadOnlineUsers();
+  }, [user, settings]);
 
   const handleSend = (e) => {
     e.preventDefault();
@@ -97,23 +157,52 @@ export function LoungeView() {
               <div className="mt-6 pt-4 border-t">
                 <p className="text-xs font-medium text-zinc-500 mb-2 flex items-center gap-1">
                   <Users className="h-3 w-3" />
-                  ONLINE — 12
+                  ONLINE — {onlineUsers.length}
                 </p>
-                <div className="space-y-2">
-                  {['Alex K.', 'Sarah M.', 'Jordan T.'].map((name) => (
-                    <div key={name} className="flex items-center gap-2">
-                      <div className="relative">
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={`https://api.dicebear.com/8.x/avataaars/svg?seed=${name}`} />
-                          <AvatarFallback className="text-xs">{getInitials(name)}</AvatarFallback>
-                        </Avatar>
-                        <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full" />
-                      </div>
-                      <span className="text-sm">{name}</span>
+                {onlineUsers.length === 0 ? (
+                  <div className="text-center py-4">
+                    <p className="text-xs text-zinc-400">No users online</p>
+                    {user && !settings?.showOnlineStatus && (
+                      <p className="text-xs text-zinc-400 mt-1">
+                        Enable "Show online status" in Settings to appear here
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <ScrollArea className="max-h-[200px]">
+                    <div className="space-y-2">
+                      {onlineUsers.map((onlineUser) => (
+                        <div key={onlineUser.id} className="flex items-center gap-2">
+                          <div className="relative">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={onlineUser.avatar} />
+                              <AvatarFallback className="text-xs">
+                                {getInitials(onlineUser.name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full" />
+                          </div>
+                          <span className="text-sm flex-1 truncate">
+                            {onlineUser.name}
+                            {onlineUser.isCurrentUser && (
+                              <span className="text-xs text-zinc-400 ml-1">(you)</span>
+                            )}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </ScrollArea>
+                )}
               </div>
+
+              {/* Settings Reminder */}
+              {user && !settings?.showOnlineStatus && (
+                <div className="mt-4 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-xs text-amber-700">
+                    💡 Your online status is hidden. Enable it in Settings to appear online to others.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </div>
 

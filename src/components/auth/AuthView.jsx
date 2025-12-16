@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
+import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
 import { Shield, Mail, Lock, User, Loader2, AlertCircle, Eye, EyeOff, CheckCircle2, XCircle, GraduationCap, Building } from 'lucide-react';
 
 // Password requirements checker
@@ -48,6 +49,9 @@ export function AuthView() {
   const [registerConfirm, setRegisterConfirm] = useState('');
   const [localError, setLocalError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  
+  // ✅ FIX: Add forgot password dialog state
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   
   // Role-based fields
   const [role, setRole] = useState('student');
@@ -117,6 +121,7 @@ export function AuthView() {
       'Email already registered': 'This email is already registered. Try logging in instead.',
       'Invalid email or password': 'The email or password you entered is incorrect',
       'Invalid credentials': 'The email or password you entered is incorrect',
+      'Invalid': 'The email or password you entered is incorrect',
     };
 
     for (const [key, value] of Object.entries(errorMappings)) {
@@ -221,300 +226,309 @@ export function AuthView() {
   const displayError = formatErrorMessage(localError || error);
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4">
-      <Card className="w-full max-w-md shadow-xl border-2">
-        <CardHeader className="text-center space-y-2 pb-2">
-          <div className="mx-auto w-16 h-16 bg-[var(--wsu-green)] rounded-2xl flex items-center justify-center mb-2">
-            <Shield className="w-8 h-8 text-white" />
-          </div>
-          <CardTitle className="text-2xl font-bold">WSU Forum</CardTitle>
-          <CardDescription>
-            Connect with the Wayne State community
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent className="space-y-4">
-          {/* Success Message */}
-          {successMessage && (
-            <div className="flex items-start gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
-              <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span>{successMessage}</span>
+    <>
+      <div className="min-h-[80vh] flex items-center justify-center px-4">
+        <Card className="w-full max-w-md shadow-xl border-2">
+          <CardHeader className="text-center space-y-2 pb-2">
+            <div className="mx-auto w-16 h-16 bg-[var(--wsu-green)] rounded-2xl flex items-center justify-center mb-2">
+              <Shield className="w-8 h-8 text-white" />
             </div>
-          )}
+            <CardTitle className="text-2xl font-bold">WSU Forum</CardTitle>
+            <CardDescription>
+              Connect with the Wayne State community
+            </CardDescription>
+          </CardHeader>
 
-          {/* Error Display */}
-          {displayError && (
-            <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span>{displayError}</span>
-            </div>
-          )}
+          <CardContent className="space-y-4">
+            {/* Success Message */}
+            {successMessage && (
+              <div className="flex items-start gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>{successMessage}</span>
+              </div>
+            )}
 
-          {/* Tabs */}
-          <Tabs value={tab} onValueChange={setTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Sign In</TabsTrigger>
-              <TabsTrigger value="register">Sign Up</TabsTrigger>
-            </TabsList>
+            {/* Error Display */}
+            {displayError && (
+              <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>{displayError}</span>
+              </div>
+            )}
 
-            {/* Login Form */}
-            <TabsContent value="login" className="space-y-4 mt-4">
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                    <Input
-                      type="email"
-                      placeholder="your.email@wayne.edu"
-                      value={loginEmail}
-                      onChange={(e) => setLoginEmail(e.target.value)}
-                      className="pl-10"
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                    <Input
-                      type={showLoginPassword ? "text" : "password"}
-                      placeholder="Password"
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      className="pl-10 pr-10"
-                      disabled={loading}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowLoginPassword(!showLoginPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-                    >
-                      {showLoginPassword ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full"
-                  variant="outline"
-                >
-                  {loading ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : null}
-                  Sign In
-                </Button>
-              </form>
-              <button
-                type="button"
-                className="w-full text-sm text-[var(--wsu-green)] hover:underline"
-                onClick={() => {/* TODO: Forgot password */}}
-              >
-                Forgot your password?
-              </button>
-            </TabsContent>
+            {/* Tabs */}
+            <Tabs value={tab} onValueChange={setTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="login">Sign In</TabsTrigger>
+                <TabsTrigger value="register">Sign Up</TabsTrigger>
+              </TabsList>
 
-            {/* Register Form */}
-            <TabsContent value="register" className="space-y-4 mt-4">
-              <form onSubmit={handleRegister} className="space-y-4">
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                  <Input
-                    type="text"
-                    placeholder="Full name"
-                    value={registerName}
-                    onChange={(e) => setRegisterName(e.target.value)}
-                    className="pl-10"
-                    disabled={loading}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                    <Input
-                      type="email"
-                      placeholder="your.accessid@wayne.edu"
-                      value={registerEmail}
-                      onChange={(e) => setRegisterEmail(e.target.value)}
-                      className="pl-10"
-                      disabled={loading}
-                    />
-                  </div>
-                  <p className="text-xs text-zinc-500 pl-1">
-                    <span className="font-medium">Note:</span> Must be a valid @wayne.edu email
-                  </p>
-                </div>
-
-                {/* Role Selection */}
-                <div>
-                  <label className="text-sm font-medium text-zinc-700 block mb-2">I am a:</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {roles.map((r) => (
-                      <button
-                        key={r.value}
-                        type="button"
-                        onClick={() => {
-                          setRole(r.value);
-                          if (r.value === 'faculty' || r.value === 'staff') {
-                            setMajor('');
-                            setClassification('');
-                          } else {
-                            setDepartment('');
-                          }
-                        }}
-                        className={`py-2 px-4 rounded-lg text-sm font-medium transition ${
-                          role === r.value
-                            ? 'bg-[var(--wsu-green)] text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
+              {/* Login Form */}
+              <TabsContent value="login" className="space-y-4 mt-4">
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                      <Input
+                        type="email"
+                        placeholder="your.email@wayne.edu"
+                        value={loginEmail}
+                        onChange={(e) => setLoginEmail(e.target.value)}
+                        className="pl-10"
                         disabled={loading}
-                      >
-                        {r.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Student/Alumni Fields */}
-                {(role === 'student' || role === 'alumni') && (
-                  <>
-                    <div>
-                      <label className="text-sm font-medium text-zinc-700 flex items-center gap-1 mb-2">
-                        <GraduationCap className="w-4 h-4" />
-                        Major *
-                      </label>
-                      <select
-                        value={major}
-                        onChange={(e) => setMajor(e.target.value)}
-                        className="w-full h-11 px-3 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--wsu-green)] bg-white"
-                        disabled={loading}
-                      >
-                        <option value="">Select your major</option>
-                        {majors.map((m) => (
-                          <option key={m} value={m}>{m}</option>
-                        ))}
-                      </select>
+                      />
                     </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                      <Input
+                        type={showLoginPassword ? "text" : "password"}
+                        placeholder="Password"
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        className="pl-10 pr-10"
+                        disabled={loading}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowLoginPassword(!showLoginPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                      >
+                        {showLoginPassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    {loading ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : null}
+                    Sign In
+                  </Button>
+                </form>
+                {/* ✅ FIX: Add forgot password button that opens dialog */}
+                <button
+                  type="button"
+                  className="w-full text-sm text-[var(--wsu-green)] hover:underline"
+                  onClick={() => setForgotPasswordOpen(true)}
+                >
+                  Forgot your password?
+                </button>
+              </TabsContent>
 
-                    {role === 'student' && (
+              {/* Register Form */}
+              <TabsContent value="register" className="space-y-4 mt-4">
+                <form onSubmit={handleRegister} className="space-y-4">
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                    <Input
+                      type="text"
+                      placeholder="Full name"
+                      value={registerName}
+                      onChange={(e) => setRegisterName(e.target.value)}
+                      className="pl-10"
+                      disabled={loading}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                      <Input
+                        type="email"
+                        placeholder="your.accessid@wayne.edu"
+                        value={registerEmail}
+                        onChange={(e) => setRegisterEmail(e.target.value)}
+                        className="pl-10"
+                        disabled={loading}
+                      />
+                    </div>
+                    <p className="text-xs text-zinc-500 pl-1">
+                      <span className="font-medium">Note:</span> Must be a valid @wayne.edu email
+                    </p>
+                  </div>
+
+                  {/* Role Selection */}
+                  <div>
+                    <label className="text-sm font-medium text-zinc-700 block mb-2">I am a:</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {roles.map((r) => (
+                        <button
+                          key={r.value}
+                          type="button"
+                          onClick={() => {
+                            setRole(r.value);
+                            if (r.value === 'faculty' || r.value === 'staff') {
+                              setMajor('');
+                              setClassification('');
+                            } else {
+                              setDepartment('');
+                            }
+                          }}
+                          className={`py-2 px-4 rounded-lg text-sm font-medium transition ${
+                            role === r.value
+                              ? 'bg-[var(--wsu-green)] text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                          disabled={loading}
+                        >
+                          {r.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Student/Alumni Fields */}
+                  {(role === 'student' || role === 'alumni') && (
+                    <>
                       <div>
-                        <label className="text-sm font-medium text-zinc-700 block mb-2">Classification *</label>
+                        <label className="text-sm font-medium text-zinc-700 flex items-center gap-1 mb-2">
+                          <GraduationCap className="w-4 h-4" />
+                          Major *
+                        </label>
                         <select
-                          value={classification}
-                          onChange={(e) => setClassification(e.target.value)}
+                          value={major}
+                          onChange={(e) => setMajor(e.target.value)}
                           className="w-full h-11 px-3 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--wsu-green)] bg-white"
                           disabled={loading}
                         >
-                          <option value="">Select your classification</option>
-                          {classifications.map((c) => (
-                            <option key={c} value={c}>{c}</option>
+                          <option value="">Select your major</option>
+                          {majors.map((m) => (
+                            <option key={m} value={m}>{m}</option>
                           ))}
                         </select>
                       </div>
+
+                      {role === 'student' && (
+                        <div>
+                          <label className="text-sm font-medium text-zinc-700 block mb-2">Classification *</label>
+                          <select
+                            value={classification}
+                            onChange={(e) => setClassification(e.target.value)}
+                            className="w-full h-11 px-3 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--wsu-green)] bg-white"
+                            disabled={loading}
+                          >
+                            <option value="">Select your classification</option>
+                            {classifications.map((c) => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Faculty/Staff Fields */}
+                  {(role === 'faculty' || role === 'staff') && (
+                    <div>
+                      <label className="text-sm font-medium text-zinc-700 flex items-center gap-1 mb-2">
+                        <Building className="w-4 h-4" />
+                        Department *
+                      </label>
+                      <select
+                        value={department}
+                        onChange={(e) => setDepartment(e.target.value)}
+                        className="w-full h-11 px-3 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--wsu-green)] bg-white"
+                        disabled={loading}
+                      >
+                        <option value="">Select your department</option>
+                        {departments.map((d) => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                      <Input
+                        type={showRegisterPassword ? "text" : "password"}
+                        placeholder="Create password"
+                        value={registerPassword}
+                        onChange={(e) => setRegisterPassword(e.target.value)}
+                        onFocus={() => setShowPasswordReqs(true)}
+                        className="pl-10 pr-10"
+                        disabled={loading}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                      >
+                        {showRegisterPassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                    {showPasswordReqs && (
+                      <PasswordRequirements password={registerPassword} />
                     )}
-                  </>
-                )}
-
-                {/* Faculty/Staff Fields */}
-                {(role === 'faculty' || role === 'staff') && (
-                  <div>
-                    <label className="text-sm font-medium text-zinc-700 flex items-center gap-1 mb-2">
-                      <Building className="w-4 h-4" />
-                      Department *
-                    </label>
-                    <select
-                      value={department}
-                      onChange={(e) => setDepartment(e.target.value)}
-                      className="w-full h-11 px-3 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--wsu-green)] bg-white"
-                      disabled={loading}
-                    >
-                      <option value="">Select your department</option>
-                      {departments.map((d) => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
-                    </select>
                   </div>
-                )}
-
-                <div className="space-y-1">
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                     <Input
-                      type={showRegisterPassword ? "text" : "password"}
-                      placeholder="Create password"
-                      value={registerPassword}
-                      onChange={(e) => setRegisterPassword(e.target.value)}
-                      onFocus={() => setShowPasswordReqs(true)}
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="Confirm password"
+                      value={registerConfirm}
+                      onChange={(e) => setRegisterConfirm(e.target.value)}
                       className="pl-10 pr-10"
                       disabled={loading}
                     />
                     <button
                       type="button"
-                      onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
                     >
-                      {showRegisterPassword ? (
+                      {showConfirmPassword ? (
                         <EyeOff className="w-4 h-4" />
                       ) : (
                         <Eye className="w-4 h-4" />
                       )}
                     </button>
                   </div>
-                  {showPasswordReqs && (
-                    <PasswordRequirements password={registerPassword} />
+                  {registerConfirm && registerPassword !== registerConfirm && (
+                    <p className="text-xs text-red-500 flex items-center gap-1">
+                      <XCircle className="w-3 h-3" />
+                      Passwords do not match
+                    </p>
                   )}
-                </div>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                  <Input
-                    type={showConfirmPassword ? "text" : "password"}
-                    placeholder="Confirm password"
-                    value={registerConfirm}
-                    onChange={(e) => setRegisterConfirm(e.target.value)}
-                    className="pl-10 pr-10"
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                  <Button
+                    type="submit"
+                    disabled={loading || !isPasswordValid(registerPassword) || registerPassword !== registerConfirm}
+                    className="w-full bg-[var(--wsu-green)] hover:bg-[var(--wsu-green)]/90 text-white"
                   >
-                    {showConfirmPassword ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-                {registerConfirm && registerPassword !== registerConfirm && (
-                  <p className="text-xs text-red-500 flex items-center gap-1">
-                    <XCircle className="w-3 h-3" />
-                    Passwords do not match
-                  </p>
-                )}
-                <Button
-                  type="submit"
-                  disabled={loading || !isPasswordValid(registerPassword) || registerPassword !== registerConfirm}
-                  className="w-full bg-[var(--wsu-green)] hover:bg-[var(--wsu-green)]/90 text-white"
-                >
-                  {loading ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : null}
-                  Create Account
-                </Button>
-              </form>
-              <p className="text-xs text-center text-zinc-500">
-                By signing up, you agree to our Terms of Service and Privacy Policy
-              </p>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-    </div>
+                    {loading ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : null}
+                    Create Account
+                  </Button>
+                </form>
+                <p className="text-xs text-center text-zinc-500">
+                  By signing up, you agree to our Terms of Service and Privacy Policy
+                </p>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ✅ FIX: Add Forgot Password Dialog */}
+      <ForgotPasswordDialog 
+        open={forgotPasswordOpen} 
+        onOpenChange={setForgotPasswordOpen} 
+      />
+    </>
   );
 }
 

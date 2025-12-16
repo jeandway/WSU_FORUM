@@ -7,6 +7,7 @@ import { Header } from '@/components/layout/Header';
 import { Sidebar, MobileSidebar } from '@/components/layout/Sidebar';
 import { AuthView } from '@/components/auth/AuthView';
 import { VerifyView } from '@/components/auth/VerifyView';
+import { ResetPasswordView } from '@/components/auth/ResetPasswordView';
 import { FeedView } from '@/components/feed/FeedView';
 import { TopicsView } from '@/components/topics/TopicsView';
 import { SubForumsView } from '@/components/subforums/SubForumsView';
@@ -45,6 +46,9 @@ function AppContent() {
   const [route, setRoute] = useState(ROUTES.AUTH);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [selectedSubforum, setSelectedSubforum] = useState(null);
+  
+
+  const [resetPasswordParams, setResetPasswordParams] = useState({ uidb64: null, token: null });
 
   // Handle subforum selection
   const handleSelectSubforum = (subforum) => {
@@ -58,9 +62,30 @@ function AppContent() {
     setRoute(ROUTES.SUBFORUMS);
   };
 
+
+  useEffect(() => {
+    const checkResetPasswordUrl = () => {
+      const path = window.location.pathname;
+      const resetMatch = path.match(/\/reset-password\/([^\/]+)\/([^\/]+)/);
+      
+      if (resetMatch) {
+        const [, uidb64, token] = resetMatch;
+        setResetPasswordParams({ uidb64, token });
+        setRoute(ROUTES.RESET_PASSWORD);
+      }
+    };
+    
+    checkResetPasswordUrl();
+  }, []);
+
   // Redirect to auth if not authenticated
   useEffect(() => {
     if (!loading) {
+      // Allow reset password route without authentication
+      if (route === ROUTES.RESET_PASSWORD) {
+        return;
+      }
+      
       if (isAuthenticated && route === ROUTES.AUTH) {
         setRoute(ROUTES.FEED);
       } else if (!isAuthenticated && route !== ROUTES.AUTH && route !== ROUTES.VERIFY) {
@@ -83,6 +108,19 @@ function AppContent() {
 
   // Get event count for badge
   const eventBadge = 4; // Would come from events API
+
+  // Handle Reset Password Route 
+  if (route === ROUTES.RESET_PASSWORD) {
+    return (
+      <div className="min-h-screen w-full bg-[var(--wsu-gray)] dark:bg-zinc-900 transition-colors">
+        <ResetPasswordView 
+          uidb64={resetPasswordParams.uidb64}
+          token={resetPasswordParams.token}
+          onSuccess={() => setRoute(ROUTES.AUTH)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full bg-[var(--wsu-gray)] dark:bg-zinc-900 transition-colors">
@@ -137,6 +175,10 @@ function renderView(route, setRoute, options = {}) {
     
     case ROUTES.VERIFY:
       return <VerifyView onBackToLogin={() => setRoute(ROUTES.AUTH)} />;
+    
+    case ROUTES.RESET_PASSWORD:
+      // This is handled specially in AppContent
+      return null;
     
     case ROUTES.FEED:
       return <FeedView onSubforumClick={onSelectSubforum} />;

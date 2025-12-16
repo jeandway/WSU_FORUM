@@ -7,6 +7,7 @@
 export const ROUTES = {
   AUTH: 'auth',
   VERIFY: 'verify',
+  RESET_PASSWORD: 'reset-password',
   FEED: 'feed',
   TOPICS: 'topics',
   SUBFORUMS: 'subforums',

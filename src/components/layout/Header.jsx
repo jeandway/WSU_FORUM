@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -8,21 +8,102 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { NotificationsDropdown } from '@/components/notifications/NotificationsDropdown';
+import { SearchResults } from '@/components/search/SearchResults';
 import { useAuth } from '@/contexts/AuthContext';
+import { api } from '@/services/api';
 import { ROUTES } from '@/constants';
 import { 
   Menu, 
   Search, 
-  Bell, 
   User, 
   Settings, 
   LogOut,
-  Shield
+  Shield,
+  X
 } from 'lucide-react';
-import { getInitials } from '@/lib/utils';
+import { getInitials, debounce } from '@/lib/utils';
 
 export function Header({ onMenuClick, route, setRoute }) {
   const { user, isAuthenticated, signOut } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const searchRef = useRef(null);
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowSearchResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Debounced search function
+  const performSearch = useRef(
+    debounce(async (query) => {
+      if (!query.trim()) {
+        setSearchResults(null);
+        setSearchLoading(false);
+        return;
+      }
+
+      setSearchLoading(true);
+      try {
+        const results = await api.search.query(query);
+        setSearchResults(results);
+        setShowSearchResults(true);
+      } catch (error) {
+        console.error('Search error:', error);
+        setSearchResults(null);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 500)
+  ).current;
+
+  const handleSearchChange = (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    if (query.trim()) {
+      performSearch(query);
+    } else {
+      setSearchResults(null);
+      setShowSearchResults(false);
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setSearchResults(null);
+    setShowSearchResults(false);
+  };
+
+  const handleSelectPost = (post) => {
+    console.log('Selected post:', post);
+    // Navigate to post or open post detail
+    setShowSearchResults(false);
+    handleClearSearch();
+  };
+
+  const handleSelectUser = (user) => {
+    console.log('Selected user:', user);
+    // Navigate to user profile
+    setShowSearchResults(false);
+    handleClearSearch();
+  };
+
+  const handleSelectSubforum = (subforum) => {
+    console.log('Selected subforum:', subforum);
+    // Navigate to subforum - you'd need to pass this up or use router
+    setShowSearchResults(false);
+    handleClearSearch();
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -58,14 +139,36 @@ export function Header({ onMenuClick, route, setRoute }) {
 
         {/* Center: Search (only when authenticated) */}
         {isAuthenticated && (
-          <div className="hidden md:flex flex-1 max-w-md mx-8">
+          <div className="hidden md:flex flex-1 max-w-md mx-8" ref={searchRef}>
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
               <input
                 type="text"
-                placeholder="Search posts, topics, events..."
-                className="w-full h-10 pl-10 pr-4 rounded-full border bg-zinc-50 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--wsu-green)] focus:border-transparent transition"
+                placeholder="Search posts, people, sub-forums..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                onFocus={() => searchQuery && setShowSearchResults(true)}
+                className="w-full h-10 pl-10 pr-10 rounded-full border bg-zinc-50 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--wsu-green)] focus:border-transparent transition"
               />
+              {searchQuery && (
+                <button
+                  onClick={handleClearSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center hover:bg-zinc-200 rounded-full transition"
+                >
+                  <X className="h-3 w-3 text-zinc-500" />
+                </button>
+              )}
+              
+              {/* Search Results Dropdown */}
+              {showSearchResults && (searchResults || searchLoading) && (
+                <SearchResults
+                  results={searchResults}
+                  loading={searchLoading}
+                  onSelectPost={handleSelectPost}
+                  onSelectUser={handleSelectUser}
+                  onSelectSubforum={handleSelectSubforum}
+                />
+              )}
             </div>
           </div>
         )}
@@ -75,10 +178,7 @@ export function Header({ onMenuClick, route, setRoute }) {
           {isAuthenticated ? (
             <>
               {/* Notifications */}
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-              </Button>
+              <NotificationsDropdown />
 
               {/* Mobile Search */}
               <Button variant="ghost" size="icon" className="md:hidden">
