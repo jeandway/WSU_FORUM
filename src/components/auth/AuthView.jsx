@@ -3,9 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
-import { Shield, Mail, Lock, User, Loader2, AlertCircle, Eye, EyeOff, CheckCircle2, XCircle } from 'lucide-react';
+import { Shield, Mail, Lock, User, Loader2, AlertCircle, Eye, EyeOff, CheckCircle2, XCircle, GraduationCap, Building } from 'lucide-react';
 
 // Password requirements checker
 const PasswordRequirements = ({ password }) => {
@@ -36,8 +35,8 @@ const PasswordRequirements = ({ password }) => {
   );
 };
 
-export function AuthView({ onShowVerify }) {
-  const { signIn, signInSSO, signUp, loading, error, clearError } = useAuth();
+export function AuthView() {
+  const { signIn, signUp, loading, error, clearError } = useAuth();
   const [tab, setTab] = useState('login');
   
   // Form states
@@ -48,6 +47,13 @@ export function AuthView({ onShowVerify }) {
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerConfirm, setRegisterConfirm] = useState('');
   const [localError, setLocalError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  
+  // Role-based fields
+  const [role, setRole] = useState('student');
+  const [major, setMajor] = useState('');
+  const [classification, setClassification] = useState('');
+  const [department, setDepartment] = useState('');
   
   // Password visibility toggles
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -56,6 +62,30 @@ export function AuthView({ onShowVerify }) {
   
   // Show password requirements
   const [showPasswordReqs, setShowPasswordReqs] = useState(false);
+
+  // Options arrays
+  const roles = [
+    { value: 'student', label: 'Student' },
+    { value: 'faculty', label: 'Faculty' },
+    { value: 'staff', label: 'Staff' },
+    { value: 'alumni', label: 'Alumni' }
+  ];
+
+  const majors = [
+    'Computer Science', 'Engineering', 'Business Administration', 'Biology', 
+    'Chemistry', 'Mathematics', 'Psychology', 'English', 'History', 
+    'Political Science', 'Education', 'Nursing', 'Other'
+  ];
+
+  const classifications = [
+    'Freshman', 'Sophomore', 'Junior', 'Senior', 'Graduate Student'
+  ];
+
+  const departments = [
+    'Computer Science', 'Engineering', 'Business', 'Natural Sciences',
+    'Liberal Arts', 'Education', 'Medicine & Health', 'Administration',
+    'Student Services', 'Other'
+  ];
 
   // Password validation helper
   const isPasswordValid = (password) => {
@@ -77,7 +107,6 @@ export function AuthView({ onShowVerify }) {
   const formatErrorMessage = (errorMsg) => {
     if (!errorMsg) return '';
     
-    // Convert technical messages to user-friendly ones
     const errorMappings = {
       'Password must contain at least one uppercase letter': 'Please include at least one capital letter (A-Z)',
       'Password must contain at least one lowercase letter': 'Please include at least one lowercase letter (a-z)',
@@ -90,7 +119,6 @@ export function AuthView({ onShowVerify }) {
       'Invalid credentials': 'The email or password you entered is incorrect',
     };
 
-    // Check if the error contains any of the mapped messages
     for (const [key, value] of Object.entries(errorMappings)) {
       if (errorMsg.includes(key)) {
         return value;
@@ -103,6 +131,7 @@ export function AuthView({ onShowVerify }) {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLocalError('');
+    setSuccessMessage('');
     clearError();
     
     if (!loginEmail || !loginPassword) {
@@ -116,10 +145,11 @@ export function AuthView({ onShowVerify }) {
   const handleRegister = async (e) => {
     e.preventDefault();
     setLocalError('');
+    setSuccessMessage('');
     clearError();
     
     if (!registerName || !registerEmail || !registerPassword) {
-      setLocalError('Please fill in all fields');
+      setLocalError('Please fill in all required fields');
       return;
     }
 
@@ -138,21 +168,54 @@ export function AuthView({ onShowVerify }) {
       return;
     }
 
+    // Role-based validation
+    if (role === 'student' || role === 'alumni') {
+      if (!major) {
+        setLocalError('Please select your major');
+        return;
+      }
+      if (role === 'student' && !classification) {
+        setLocalError('Please select your classification');
+        return;
+      }
+    }
+
+    if (role === 'faculty' || role === 'staff') {
+      if (!department) {
+        setLocalError('Please select your department');
+        return;
+      }
+    }
+
     const result = await signUp({
       name: registerName,
       email: registerEmail,
       password: registerPassword,
+      username: registerEmail.split('@')[0],
+      pass2: registerConfirm,
+      role: role,
+      major: major || '',
+      classification: classification || '',
+      department: department || ''
     });
 
-    if (result.success && onShowVerify) {
-      onShowVerify();
+    if (result.success) {
+      setSuccessMessage('Account created! Please check your email and click the verification link to activate your account.');
+      // Clear form
+      setRegisterName('');
+      setRegisterEmail('');
+      setRegisterPassword('');
+      setRegisterConfirm('');
+      setRole('student');
+      setMajor('');
+      setClassification('');
+      setDepartment('');
+      // Switch to login tab after 3 seconds
+      setTimeout(() => {
+        setTab('login');
+        setSuccessMessage('');
+      }, 3000);
     }
-  };
-
-  const handleSSO = async () => {
-    setLocalError('');
-    clearError();
-    await signInSSO();
   };
 
   const displayError = formatErrorMessage(localError || error);
@@ -171,26 +234,13 @@ export function AuthView({ onShowVerify }) {
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {/* SSO Button */}
-          <Button
-            onClick={handleSSO}
-            disabled={loading}
-            className="w-full h-12 bg-[var(--wsu-green)] hover:bg-[var(--wsu-green)]/90 text-white font-medium"
-          >
-            {loading ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Shield className="w-4 h-4 mr-2" />
-            )}
-            Continue with Wayne State SSO
-          </Button>
-
-          <div className="relative">
-            <Separator />
-            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-xs text-zinc-500">
-              or continue with email
-            </span>
-          </div>
+          {/* Success Message */}
+          {successMessage && (
+            <div className="flex items-start gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>{successMessage}</span>
+            </div>
+          )}
 
           {/* Error Display */}
           {displayError && (
@@ -298,6 +348,98 @@ export function AuthView({ onShowVerify }) {
                     <span className="font-medium">Note:</span> Must be a valid @wayne.edu email
                   </p>
                 </div>
+
+                {/* Role Selection */}
+                <div>
+                  <label className="text-sm font-medium text-zinc-700 block mb-2">I am a:</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {roles.map((r) => (
+                      <button
+                        key={r.value}
+                        type="button"
+                        onClick={() => {
+                          setRole(r.value);
+                          if (r.value === 'faculty' || r.value === 'staff') {
+                            setMajor('');
+                            setClassification('');
+                          } else {
+                            setDepartment('');
+                          }
+                        }}
+                        className={`py-2 px-4 rounded-lg text-sm font-medium transition ${
+                          role === r.value
+                            ? 'bg-[var(--wsu-green)] text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                        disabled={loading}
+                      >
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Student/Alumni Fields */}
+                {(role === 'student' || role === 'alumni') && (
+                  <>
+                    <div>
+                      <label className="text-sm font-medium text-zinc-700 flex items-center gap-1 mb-2">
+                        <GraduationCap className="w-4 h-4" />
+                        Major *
+                      </label>
+                      <select
+                        value={major}
+                        onChange={(e) => setMajor(e.target.value)}
+                        className="w-full h-11 px-3 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--wsu-green)] bg-white"
+                        disabled={loading}
+                      >
+                        <option value="">Select your major</option>
+                        {majors.map((m) => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {role === 'student' && (
+                      <div>
+                        <label className="text-sm font-medium text-zinc-700 block mb-2">Classification *</label>
+                        <select
+                          value={classification}
+                          onChange={(e) => setClassification(e.target.value)}
+                          className="w-full h-11 px-3 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--wsu-green)] bg-white"
+                          disabled={loading}
+                        >
+                          <option value="">Select your classification</option>
+                          {classifications.map((c) => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Faculty/Staff Fields */}
+                {(role === 'faculty' || role === 'staff') && (
+                  <div>
+                    <label className="text-sm font-medium text-zinc-700 flex items-center gap-1 mb-2">
+                      <Building className="w-4 h-4" />
+                      Department *
+                    </label>
+                    <select
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                      className="w-full h-11 px-3 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--wsu-green)] bg-white"
+                      disabled={loading}
+                    >
+                      <option value="">Select your department</option>
+                      {departments.map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <div className="space-y-1">
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
