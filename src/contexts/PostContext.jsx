@@ -160,85 +160,6 @@ const MOCK_POSTS = [
     contentType: 'question',
     isMock: true,
   },
-  {
-    id: 'mock_p6',
-    author: { 
-      id: 'mock_u_career', 
-      name: 'Career Services', 
-      avatar: 'https://api.dicebear.com/8.x/shapes/svg?seed=Career',
-      role: 'Staff'
-    },
-    subforumId: 'internships',
-    subforumName: 'Internships',
-    topicId: 't7',
-    topicName: 'Career',
-    title: '🎯 Summer 2026 Internship Fair - Register Now!',
-    body: 'Over 50 companies will be attending our annual internship fair on January 15th. Companies include Google, Microsoft, Ford, GM, and many local Detroit startups. Registration is required. Free professional headshots available!',
-    liked: true,
-    saved: true,
-    likes: 89,
-    comments: [],
-    createdAt: '1d ago',
-    contentType: 'event',
-    eventDate: '2026-01-15',
-    eventTime: '10:00',
-    eventPlace: 'Student Center Ballroom',
-    isMock: true,
-  },
-  {
-    id: 'mock_p7',
-    author: { 
-      id: 'mock_u_jason', 
-      name: 'Jason R.', 
-      avatar: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Jason',
-      role: 'Student'
-    },
-    subforumId: 'marketplace',
-    subforumName: 'Buy/Sell/Trade',
-    topicId: 't5',
-    topicName: 'Marketplace',
-    title: '📚 Selling: Calculus textbook (Stewart 9th Ed)',
-    body: 'Barely used, no highlighting. $50 OBO. Can meet on campus. Also have the solutions manual available for extra $20.',
-    liked: false,
-    saved: false,
-    likes: 3,
-    comments: [],
-    createdAt: '2d ago',
-    contentType: 'discussion',
-    isMock: true,
-  },
-  {
-    id: 'mock_p8',
-    author: { 
-      id: 'mock_u_sports', 
-      name: 'WSU Athletics', 
-      avatar: 'https://api.dicebear.com/8.x/shapes/svg?seed=Athletics',
-      role: 'Staff'
-    },
-    subforumId: 'sports',
-    subforumName: 'Sports & Recreation',
-    topicId: 't8',
-    topicName: 'Sports',
-    title: '🏀 Warriors Basketball vs Michigan State - Friday!',
-    body: 'Come support your Warriors this Friday night at 7pm! First 500 students get free t-shirts. Student section opens at 6pm.',
-    liked: false,
-    saved: false,
-    likes: 67,
-    comments: [
-      { 
-        id: 'mock_c7', 
-        author: { id: 'mock_u_fan', name: 'Marcus J.', avatar: 'https://api.dicebear.com/8.x/avataaars/svg?seed=Marcus', role: 'Student' },
-        text: "Let's gooooo! Warriors all the way! 💚",
-        createdAt: '5h ago'
-      },
-    ],
-    createdAt: '8h ago',
-    contentType: 'event',
-    eventDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    eventTime: '19:00',
-    eventPlace: 'Athletics Center',
-    isMock: true,
-  },
 ];
 
 // ============================================================================
@@ -256,7 +177,7 @@ export function PostProvider({ children }) {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [includeMockData, setIncludeMockData] = useState(true); // Toggle for mock data
+  const [includeMockData, setIncludeMockData] = useState(true);
 
   // Fetch posts when user logs in
   useEffect(() => {
@@ -271,19 +192,16 @@ export function PostProvider({ children }) {
     api.posts.getAll()
       .then(({ posts: realPosts }) => {
         if (!cancelled) {
-          // Combine real posts with mock posts if enabled
           const allPosts = includeMockData 
             ? [...(realPosts || []), ...MOCK_POSTS]
             : (realPosts || []);
           
-          // Sort by createdAt (mock posts have relative times, so put real posts first)
           setPosts(allPosts);
         }
       })
       .catch((err) => {
         if (!cancelled) {
           setError(err.message);
-          // Still show mock data on error
           if (includeMockData) {
             setPosts(MOCK_POSTS);
           }
@@ -300,7 +218,6 @@ export function PostProvider({ children }) {
   const createPost = useCallback(async (data) => {
     setError(null);
     try {
-      // Add to local state immediately for better UX
       const newPost = {
         id: `post_${Date.now()}`,
         ...data,
@@ -313,10 +230,8 @@ export function PostProvider({ children }) {
       
       setPosts((prev) => [newPost, ...prev]);
       
-      // Try to save to backend
       try {
         const { post } = await api.posts.create(data);
-        // Update with server response if available
         if (post) {
           setPosts((prev) => prev.map(p => p.id === newPost.id ? { ...post, ...newPost } : p));
         }
@@ -335,10 +250,8 @@ export function PostProvider({ children }) {
   const updatePost = useCallback(async (id, data) => {
     setError(null);
     try {
-      // Optimistic update
       setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, ...data } : p)));
       
-      // Try backend update
       try {
         await api.posts.update(id, data);
       } catch (apiError) {
@@ -371,8 +284,9 @@ export function PostProvider({ children }) {
     }
   }, []);
 
-  // Toggle like (optimistic update)
+  // Toggle like (optimistic update with backend sync)
   const toggleLike = useCallback(async (id) => {
+    // Optimistic update
     setPosts((prev) =>
       prev.map((p) =>
         p.id === id
@@ -380,10 +294,26 @@ export function PostProvider({ children }) {
           : p
       )
     );
+    const isRealNumericId = typeof id === "number" || /^\d+$/.test(String(id));
+    if (!isRealNumericId) {
+      return;
+    }
 
     try {
-      await api.posts.like(id);
-    } catch {
+      // Call API and get updated count
+      const response = await api.posts.like(id);
+      
+      // Update with actual count from server if available
+      if (response && typeof response.likes === 'number') {
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === id
+              ? { ...p, liked: response.liked, likes: response.likes }
+              : p
+          )
+        );
+      }
+    } catch (err) {
       // Revert on error
       setPosts((prev) =>
         prev.map((p) =>
@@ -404,14 +334,13 @@ export function PostProvider({ children }) {
     try {
       await api.posts.save(id);
     } catch {
-      // Revert on error
       setPosts((prev) =>
         prev.map((p) => (p.id === id ? { ...p, saved: !p.saved } : p))
       );
     }
   }, []);
 
-  // Add comment to a post
+  // Add comment to a post with backend sync
   const addComment = useCallback(async (postId, text) => {
     setError(null);
     try {
@@ -427,6 +356,7 @@ export function PostProvider({ children }) {
         createdAt: 'Just now',
       };
       
+      // Optimistic update
       setPosts((prev) =>
         prev.map((p) =>
           p.id === postId ? { ...p, comments: [...(p.comments || []), comment] } : p
@@ -434,7 +364,23 @@ export function PostProvider({ children }) {
       );
       
       try {
-        await api.posts.addComment(postId, text);
+        const response = await api.posts.addComment(postId, text);
+        
+        // Update with server response if available
+        if (response && response.comment) {
+          setPosts((prev) =>
+            prev.map((p) =>
+              p.id === postId 
+                ? { 
+                    ...p, 
+                    comments: p.comments.map(c => 
+                      c.id === comment.id ? { ...c, ...response.comment } : c
+                    )
+                  } 
+                : p
+            )
+          );
+        }
       } catch (apiError) {
         console.log('Comment saved locally');
       }
@@ -445,6 +391,27 @@ export function PostProvider({ children }) {
       return { success: false, error: err.message };
     }
   }, [user]);
+
+  // Fetch comments for a specific post
+  const fetchComments = useCallback(async (postId) => {
+    try {
+      const response = await api.posts.getComments ? 
+        await api.posts.getComments(postId) :
+        { comments: [] };
+      
+      if (response && response.comments) {
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === postId ? { ...p, comments: response.comments } : p
+          )
+        );
+      }
+      
+      return { success: true, comments: response.comments || [] };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }, []);
 
   // Get saved posts
   const getSavedPosts = useCallback(() => {
@@ -502,6 +469,7 @@ export function PostProvider({ children }) {
     toggleLike,
     toggleSave,
     addComment,
+    fetchComments,
     getSavedPosts,
     getPostsByTopic,
     getPostsBySubforum,

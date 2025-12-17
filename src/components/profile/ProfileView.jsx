@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { PostCard } from '@/components/feed/PostCard';
+import { ProfileEditDialog } from './ProfileEditDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePosts } from '@/contexts/PostContext';
 import { getInitials, formatDate } from '@/lib/utils';
@@ -16,17 +17,29 @@ import {
   Users, 
   FileText,
   Settings,
-  Share2
+  Share2,
+  MapPin,
+  Mail
 } from 'lucide-react';
 
 export function ProfileView() {
   const { user } = useAuth();
   const { getUserPosts } = usePosts();
   const [tab, setTab] = useState('posts');
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   
   const userPosts = getUserPosts();
 
   if (!user) return null;
+
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      // Could add a toast notification here
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -45,7 +58,11 @@ export function ProfileView() {
               </Avatar>
             </div>
             <div className="absolute top-4 right-4">
-              <Button variant="secondary" size="sm">
+              <Button 
+                variant="secondary" 
+                size="sm"
+                onClick={() => setEditDialogOpen(true)}
+              >
                 <Edit className="h-4 w-4 mr-2" />
                 Edit Profile
               </Button>
@@ -56,10 +73,18 @@ export function ProfileView() {
           <div className="mt-14 ml-2">
             <div className="flex items-start justify-between">
               <div>
-                <h1 className="text-2xl font-bold">{user.name}</h1>
-                <p className="text-zinc-500">{user.email}</p>
-                <div className="flex items-center gap-2 mt-2">
-                  <Badge variant="secondary">{user.role}</Badge>
+                <h1 className="text-2xl font-bold">{user.name || user.username}</h1>
+                <div className="flex items-center gap-2 text-zinc-500 mt-1">
+                  <Mail className="h-4 w-4" />
+                  <span className="text-sm">{user.email}</span>
+                </div>
+                <div className="flex items-center gap-2 mt-3 flex-wrap">
+                  <Badge 
+                    variant="secondary"
+                    className="bg-[var(--wsu-green)]/10 text-[var(--wsu-green)]"
+                  >
+                    {user.role || 'Student'}
+                  </Badge>
                   {user.major && (
                     <Badge variant="outline">{user.major}</Badge>
                   )}
@@ -68,14 +93,21 @@ export function ProfileView() {
                   )}
                 </div>
               </div>
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" onClick={handleShare} title="Share profile">
                 <Share2 className="h-4 w-4" />
               </Button>
             </div>
 
             {/* Bio */}
-            {user.bio && (
+            {user.bio ? (
               <p className="mt-4 text-zinc-700">{user.bio}</p>
+            ) : (
+              <button
+                onClick={() => setEditDialogOpen(true)}
+                className="mt-4 text-zinc-400 text-sm hover:text-zinc-600 transition"
+              >
+                + Add a bio to tell others about yourself
+              </button>
             )}
 
             {/* Stats */}
@@ -123,7 +155,7 @@ export function ProfileView() {
                 <FileText className="h-12 w-12 mx-auto mb-4 text-zinc-300" />
                 <h3 className="font-semibold mb-1">No posts yet</h3>
                 <p className="text-zinc-500 text-sm">
-                  Your posts will appear here
+                  Your posts will appear here when you create them
                 </p>
               </CardContent>
             </Card>
@@ -147,13 +179,15 @@ export function ProfileView() {
               <Separator />
               <div>
                 <p className="text-sm text-zinc-500">Role</p>
-                <p className="mt-1">{user.role}</p>
+                <p className="mt-1">{user.role || 'Student'}</p>
               </div>
               {user.major && (
                 <>
                   <Separator />
                   <div>
-                    <p className="text-sm text-zinc-500">Major</p>
+                    <p className="text-sm text-zinc-500">
+                      {user.role === 'Faculty' ? 'Department' : 'Major'}
+                    </p>
                     <p className="mt-1">{user.major}</p>
                   </div>
                 </>
@@ -167,10 +201,21 @@ export function ProfileView() {
                   </div>
                 </>
               )}
+              <Separator />
+              <div>
+                <p className="text-sm text-zinc-500">Email</p>
+                <p className="mt-1">{user.email}</p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Profile Edit Dialog */}
+      <ProfileEditDialog 
+        open={editDialogOpen} 
+        onOpenChange={setEditDialogOpen} 
+      />
     </div>
   );
 }
